@@ -1,0 +1,236 @@
+formats:
+  html
+  json
+
+
+inject tests into various contexts
+authenticate
+authorize
+default subject - can be altered
+
+
+CONFIG FLOW
+   global config : override for project in a config file = project config
+  project config : override for a case = case config
+
+
+CONFIGURATION
+  (proc/value)
+  resource_name: described_class ->
+  resource_class: described_class ->
+
+  authenticate_user
+    def authenticate_user user = nil
+      @user = user || Fabricate(:benchify_user)
+      sign_in @user
+      controller.stub(:user_signed_in?).and_return(true)
+      controller.stub(:current_user).and_return(@user)
+      controller.stub(:authenticate_user!).and_return(@user)
+    end
+
+  unauthenticated:
+    status: 403
+    json: render {}
+    html: redirect (also per action)
+  unauthorized:
+    status: 403
+    json: render {}
+    html: redirect (also per action)
+  not_found:
+    status: 404
+    json: render {}
+    html: redirect (also per action)
+  create:
+    method: POST
+    success status: 201
+    failure status: 422
+    before:
+      create an instance as negative case
+  update:
+    method: PUT
+    success status: 200
+    failure status: 422
+    before:
+      create an instance as negative case
+  destroy:
+    method: DELETE
+    success status: 200
+    before:
+      create an instance as negative case
+  show, index, edit, new:
+    method: GET
+    success status: 200
+
+
+
+shared pieces:
+  AUTHENTICATE (toggled)
+    not authenticated:
+      redirect/forbidden
+    authenticated:
+      before { authenticate }
+      yield
+
+  AUTHORIZE (toggled)
+    [authenticated]
+    not authorized:
+      before { unauthorize }
+      redirect/forbidden
+    authorized:
+      before { authorize }
+      yield
+
+  HEADER HTML
+  HEADER JSON
+  CHECK RESPONSE STATUS
+  CHECK RESPONSE HEADER (html/json)
+  COMPARE JSON RESPONSE (json)
+  CHECK RENDER TEMPLATE (html)
+
+
+
+
+create:
+  valid:
+    create resource (change count)
+    [fetch (default find(params[:id]).attributes) and compare]
+  invalid
+    not create resource (not change count)
+
+'POST create HTML'
+  before:
+    header html
+  outcome:
+    header html
+    status (201/3xx/422 ?)
+    render/redirect
+
+'POST create JSON'
+  before:
+    header json
+  outcome:
+    header json
+    status (201/422)
+    test json: (include keys / hash ==)  # hash == for now
+
+
+update:
+  invalid id:
+    status 404
+    doesn't create a resource
+  valid id, unauthorized:
+    status 403
+    doesn't create a resource
+    doesn't update the resource
+  valid id, authorized:
+    status 200
+    doesn't create a resource
+    updates the resource
+
+
+'PUT update HTML'
+  before:
+    header html
+  outcome:
+    header html
+    status (200/3xx/422 ?)
+    render/redirect
+'PUT update JSON'
+  before:
+    header json
+  outcome:
+    header json
+    status (201/422)
+    test json: (include keys / hash ==)  # hash == for now
+
+
+destroy:
+  invalid id:
+    status 404
+    doesn't destroy a resource
+  valid id, unauthorized:
+    status 403
+    doesn't destroy a resource
+  valid id, authorized:
+    before:
+      create another resource for negative test
+    status 200
+    destroys the resource
+
+'DELETE destroy HTML'
+  before:
+    header html
+  outcome:
+    header html
+    status (200/3xx/422 ?)
+    render/redirect
+'DELETE destroy JSON'
+  before:
+    header json
+  outcome:
+    header json
+    status 200
+
+
+index:
+  unauthorized?
+
+'GET index HTML'
+  before:
+    header html
+  outcome:
+    header html
+    status 200/3xx
+    render/redirect
+'GET index JSON'
+  before:
+    header json
+  outcome:
+    header json
+    status 200
+    compare json
+
+
+
+get:
+  invalid id:
+    status 404
+  valid id, unauthorized:
+    status 403
+  valid id, authorized:
+    status 200
+
+'GET show HTML'
+  before:
+    header html
+  outcome:
+    header html
+    status 200/3xx
+    render/redirect
+'GET show JSON'
+  before:
+    header json
+  outcome:
+    header json
+    status 200
+    compare json
+
+'GET edit HTML'
+  before:
+    header html
+  outcome:
+    invalid id:
+      status 404
+    valid id, unauthorized:
+      status 403
+    valid id, authorized:
+      status 200
+
+'GET new HTML'
+  before:
+    header html
+  outcome:
+    unauthorized:
+    authorized:
+      render/redirect
+      status 200/3xx
