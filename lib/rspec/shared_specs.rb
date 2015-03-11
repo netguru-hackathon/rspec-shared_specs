@@ -7,6 +7,8 @@ module Rspec
       val.kind_of?(Proc) ? val.call(*args) : val
     end
 
+    # the idea is to have default config for all specs; this config should be overridable
+    # per project and then for each case
     CONFIG = {
       template: ->(controller) { controller.action_name },
       authentication: {
@@ -108,5 +110,8 @@ module Rspec
         it_behaves_like 'action rendering json'
       end
     end
+
+    # TODO:
+    # add CRUD specs for JSON and HTML
   end
 end
